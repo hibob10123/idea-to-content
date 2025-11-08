@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Catalyst - Idea Generator</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        textarea { width: 100%; height: 150px; margin-bottom: 15px; padding: 10px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        #results-container { margin-top: 20px; padding: 15px; border: 1px solid #ccc; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Idea 2 Content 💡</h1>
+    <p>Describe your business, target audience, and current marketing goals to generate fresh content ideas.</p>
+
+    <textarea id="business-description" placeholder="E.g., We sell eco-friendly dog toys to Millennials in urban areas who value sustainability. Our current goal is to boost Instagram engagement."></textarea>
+    
+    <button onclick="generateIdeas()">Generate Ideas</button>
+    
+    <h2>Generated Ideas:</h2>
+    <div id="results-container">
+        The magic ideas will appear here...
+    </div>
+
+    <script>
+        async function generateIdeas() {
+            const description = document.getElementById('business-description').value;
+            const resultsContainer = document.getElementById('results-container');
+            
+            // Clear previous results and show loading
+            resultsContainer.innerHTML = 'Generating ideas... please wait.';
+
+            try {
+                // Send the data to the Flask backend's '/generate_content' route
+                const response = await fetch('http://127.0.0.1:5000/generate_content', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ description: description })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Display the placeholder ideas from your app.py
+                    resultsContainer.innerHTML = data.ideas.join('\n\n---\n\n');
+                } else {
+                    resultsContainer.innerHTML = 'Error generating ideas: ' + data.message;
+                }
+
+            } catch (error) {
+                resultsContainer.innerHTML = 'An unexpected error occurred. Check the console and server logs.';
+                console.error('Fetch error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
