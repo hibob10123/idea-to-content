@@ -1,0 +1,4 @@
+Flask
+openai
+python-dotenv
+gunicorn  # <-- CRITICAL for deployment! This is a production web server.
