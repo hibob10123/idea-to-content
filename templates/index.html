@@ -8,6 +8,8 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        <!-- Dev fallback for Live Server / file preview: loads static when Jinja isn't rendered -->
+        <link rel="stylesheet" href="../static/css/style.css">
     </head>
     <body>
         <main class="app">
@@ -111,5 +113,7 @@
         </main>
 
         <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+        <!-- Dev fallback for Live Server / file preview -->
+        <script src="../static/js/app.js" defer></script>
     </body>
 </html>
