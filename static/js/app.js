@@ -87,8 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
       tone: raw.tone || 'neutral',
       duration: raw.duration || '0:30',
       caption: raw.caption || raw.hook || '',
-      script: raw.script || raw.body || '',
+      // script may be a string or object depending on backend; normalize to string
+      script: (typeof raw.script === 'string') ? raw.script : (raw.script && raw.script.hook ? ((raw.script.hook || '') + '\n' + (raw.script.problem||'') + '\n' + (raw.script.solution||'') ) : ''),
       scriptFull: raw.scriptFull || raw.script || '',
+      editingNotes: raw.editingNotes || [],
       apps: raw.apps || (budget === 'free' ? ['CapCut','Canva'] : ['Premiere Pro','Resolve'])
     };
   }
@@ -154,25 +156,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Try backend first
     try{
-      const resp = await fetch('/idea-to-content', {
+      console.log('Sending request to backend...'); // Debug log
+      const resp = await fetch('/content-catalyst', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({description})
       });
+      console.log('Backend response status:', resp.status); // Debug log
+      
       if(resp.ok){
         const data = await resp.json();
-        if(data && data.ideas){
+        console.log('Backend response data:', data); // Debug log
+        
+        if(data && Array.isArray(data.ideas) && data.ideas.length > 0){
+          console.log('Mapping backend ideas...'); // Debug log
           const list = data.ideas.map(raw => mapBackendIdea(raw, budget));
+          console.log('Mapped ideas:', list); // Debug log
           renderIdeas(list);
           return;
+        } else {
+          console.error('Backend returned invalid data format:', data);
+          throw new Error('Invalid backend response format');
         }
+      } else {
+        console.error('Backend request failed:', resp.status);
+        throw new Error('Backend request failed');
       }
-    }catch(err){
-      console.debug('Backend not available—using local placeholders', err);
-    }
+    } catch(err) {
+      console.error('Backend error:', err);
+      // Only fall back to preset ideas if the backend is unavailable
+      // Don't fallback if we got a response but it was invalid
+      if (err.message === 'Backend request failed' || err.name === 'TypeError') {
+        console.log('Backend unavailable, using fallback ideas');
+        const fallback = buildPlaceholderIdeas(description, format, tone, budget);
+        renderIdeas(fallback);
+      } else {
+        // Show error message for invalid responses
+        ideasGrid.innerHTML = '<div class="muted">Sorry, there was a problem generating ideas. Please try again.</div>';
+      }
 
-    // fallback local generation
-    const fallback = buildPlaceholderIdeas(description, format, tone, budget);
-    renderIdeas(fallback);
+    }
   }
 
   function showDetail(idea){
@@ -183,7 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
     steps.push({title:'Hook',body:`${idea.caption || 'Short one-line hook to grab attention.'}`});
     steps.push({title:'Shot list',body: (idea.script || '').split('\n').slice(0,6).join('\n') || '3 shots: intro, demo, CTA.'});
     steps.push({title:'Script',body: idea.scriptFull || idea.script || 'Write a short 20-40s script with clear CTA.'});
-    steps.push({title:'Editing & Apps',body: `Recommended apps: ${idea.apps && idea.apps.join(', ')}`});
+    // Include editing notes if present
+    const editingNotesBody = (idea.editingNotes && idea.editingNotes.length) ? ('- ' + idea.editingNotes.join('\n- ')) : `Recommended apps: ${idea.apps && idea.apps.join(', ')}`;
+    steps.push({title:'Editing & Apps',body: editingNotesBody});
     steps.push({title:'Distribution',body: 'Short caption + hashtags; post within first 60 minutes of scheduled time.'});
 
     steps.forEach(s=>{
@@ -192,6 +216,66 @@ document.addEventListener('DOMContentLoaded', () => {
       el.innerHTML = `<h4>${escapeHtml(s.title)}</h4><div class="muted-2" style="white-space:pre-wrap">${escapeHtml(s.body)}</div>`;
       detailBody.appendChild(el);
     });
+
+    // Chat UI for follow-ups
+    let chatWrap = document.getElementById('idea-chat-wrap');
+    if(!chatWrap){
+      chatWrap = document.createElement('div');
+      chatWrap.id = 'idea-chat-wrap';
+      chatWrap.style.marginTop = '12px';
+      chatWrap.innerHTML = `
+        <div style="margin-top:12px"><h4>Ask for editing help</h4></div>
+        <div id="idea-chat-messages" style="max-height:220px;overflow:auto;padding:8px;border-radius:8px;background:rgba(0,0,0,0.03);margin-top:8px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="idea-chat-input" placeholder="Ask a specific question about editing, timing, or assets" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+          <button id="idea-chat-send" class="btn">Send</button>
+        </div>
+      `;
+      detailBody.appendChild(chatWrap);
+
+      const messagesEl = chatWrap.querySelector('#idea-chat-messages');
+      const inputEl = chatWrap.querySelector('#idea-chat-input');
+      const sendBtn = chatWrap.querySelector('#idea-chat-send');
+
+      function appendMsg(who, text){
+        const m = document.createElement('div');
+        m.style.margin = '6px 0';
+        m.innerHTML = `<strong>${escapeHtml(who)}:</strong> <div style="white-space:pre-wrap;margin-top:4px">${escapeHtml(text)}</div>`;
+        messagesEl.appendChild(m);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function sendQuestion(){
+        const q = inputEl.value.trim();
+        if(!q) return;
+        appendMsg('You', q);
+        inputEl.value = '';
+        sendBtn.disabled = true; sendBtn.textContent = 'Thinking...';
+        try{
+          const resp = await fetch('/idea-chat', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({idea: idea, question: q})
+          });
+          if(resp.ok){
+            const data = await resp.json();
+            if(data && data.reply){
+              appendMsg('Editor AI', data.reply);
+            } else {
+              appendMsg('Editor AI', 'No reply received.');
+            }
+          } else {
+            appendMsg('Editor AI', 'Server error: ' + resp.status);
+          }
+        }catch(err){
+          appendMsg('Editor AI', 'Network error: could not reach backend.');
+        }finally{
+          sendBtn.disabled = false; sendBtn.textContent = 'Send';
+        }
+      }
+
+      sendBtn.addEventListener('click', sendQuestion);
+      inputEl.addEventListener('keypress', (e)=>{ if(e.key === 'Enter') sendQuestion(); });
+    }
 
     showPage('detail');
   }
