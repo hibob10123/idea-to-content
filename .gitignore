@@ -1,0 +1,17 @@
+# --- Project Secrets ---
+.env
+*.key
+*.pem
+*.p8
+
+# --- Python Environment and Dependencies ---
+.venv/
+__pycache__/
+*.pyc
+*.o
+
+# --- IDE Files (VS Code) ---
+.vscode/
+
+# --- Temporary/Auto-generated Files ---
+*.log
