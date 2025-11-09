@@ -1,84 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const generateBtn = document.getElementById('generate-btn');
+  // Pages
+  const pages = Array.from(document.querySelectorAll('.page'));
+  const showPage = (name) => {
+    pages.forEach(p => {
+      if (p.dataset.page === name) {
+        p.classList.add('page-active');
+        requestAnimationFrame(()=> p.classList.add('fade-in'));
+      } else {
+        p.classList.remove('page-active', 'fade-in');
+      }
+    });
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  // Elements
   const descEl = document.getElementById('business-description');
-  const resultsEl = document.getElementById('results');
+  const formatEl = document.getElementById('video-format');
+  const toneEl = document.getElementById('tone');
+  const toIdeasBtn = document.getElementById('to-ideas');
+  const ideasGrid = document.getElementById('ideas-grid');
+  const detailTitle = document.getElementById('detail-title');
+  const detailBody = document.getElementById('detail-body');
+  const backToHome = document.getElementById('back-to-home');
+  const backToIdeas = document.getElementById('back-to-ideas');
 
-  function showPlaceholder() {
-    resultsEl.classList.add('empty');
-    resultsEl.innerHTML = `
-      <div class="placeholder">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 2v6" stroke-linecap="round" stroke-linejoin="round"></path>
-          <path d="M5 12h14" stroke-linecap="round" stroke-linejoin="round"></path>
-          <path d="M12 22v-6" stroke-linecap="round" stroke-linejoin="round"></path>
-        </svg>
-        <p class="muted">Your ideas will appear here</p>
-      </div>`;
+  // nav buttons
+  document.querySelectorAll('[data-nav]').forEach(btn => btn.addEventListener('click', ()=> showPage(btn.dataset.nav)));
+
+  backToHome && backToHome.addEventListener('click', ()=> showPage('home'));
+  backToIdeas && backToIdeas.addEventListener('click', ()=> showPage('ideas'));
+
+  // budget
+  function getBudget(){
+    const el = document.querySelector('input[name="budget"]:checked');
+    return el ? el.value : 'free';
   }
 
-  function makeIdeaCard(idea) {
-    const div = document.createElement('div');
-    div.className = 'idea-card';
-
-    div.innerHTML = `
-      <div class="idea-header">
-        <div>
-          <div class="idea-title">${escapeHtml(idea.title)}</div>
-          <div class="idea-meta">${escapeHtml(idea.format)} • ${escapeHtml(idea.tone)}</div>
-        </div>
-        <div class="pill">${escapeHtml(idea.duration)}</div>
-      </div>
-      <div class="idea-body">
-        <div class="muted"><strong>Hook / caption:</strong> ${escapeHtml(idea.caption)}</div>
-        <div style="margin-top:8px"><strong>Shot list & script:</strong>
-          <div class="muted" style="margin-top:6px;white-space:pre-wrap">${escapeHtml(idea.script)}</div>
-        </div>
-        <div class="actions">
-          <button class="copy-btn" data-copy>Copy full script</button>
-          <button class="copy-btn" data-copy-caption>Copy caption</button>
-        </div>
-        <div style="margin-top:10px;color:var(--muted)"><strong>Apps:</strong> ${escapeHtml(idea.apps.join(', '))}</div>
-      </div>
-    `;
-
-    // attach copy handlers
-    div.querySelectorAll('[data-copy],[data-copy-caption]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.hasAttribute('data-copy')) {
-          copyToClipboard(idea.scriptFull || (idea.caption + '\n\n' + idea.script));
-        } else {
-          copyToClipboard(idea.caption);
-        }
-        btn.textContent = 'Copied';
-        setTimeout(() => (btn.textContent = btn.hasAttribute('data-copy') ? 'Copy full script' : 'Copy caption'), 1200);
-      });
-    });
-
-    return div;
-  }
-
-  function renderIdeas(ideas) {
-    resultsEl.classList.remove('empty');
-    resultsEl.innerHTML = '';
-    ideas.forEach(i => resultsEl.appendChild(makeIdeaCard(i)));
-  }
-
-  function buildPlaceholderIdeas(description, format, tone) {
-    // Lightweight deterministic placeholder generator for demo purposes
-    const base = description ? description.split('.')[0] : 'Your business';
-    return [1,2,3].map(n => {
-      return {
-        title: `${base} — ${['Quick tip','Customer story','Before & after'][n-1]}`,
-        format: format === 'youtube-long' ? 'YouTube (long)' : (format === 'youtube' ? 'YouTube Short' : 'Reel/TikTok'),
-        tone: tone,
-        duration: format === 'youtube-long' ? '2-5 min' : (format === 'youtube' ? '0:15' : '0:30'),
-        caption: `Quick ${tone} idea to boost engagement #${n}`,
-        script: `${n}. Hook (2-4s): Grab attention with unexpected fact about ${base}\n`+
-                `${n}. Shot 1: Close-up — 3s\n${n}. Shot 2: Demo — 6s\n${n}. Shot 3: CTA — 3s\n\nNotes: Keep it authentic, add captions, vertical crop.`,
-        scriptFull: `HOOK:\nGrab attention with a short line about ${base}\n\nSCRIPT:\n${n}. Shot 1: ...` ,
-        apps: n === 1 ? ['CapCut','InShot','Canva'] : (n===2 ? ['VN','Instagram Reels','Descript'] : ['LumaFusion','Premiere Rush','Spark Video'])
-      };
-    });
+  // Spinner / loading helper
+  function setLoading(on, target){
+    if(on){
+      target.innerHTML = '<div class="muted">Generating ideas…</div>';
+    }
   }
 
   function escapeHtml(str){
@@ -99,42 +61,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function generate() {
-    const description = descEl.value.trim();
-    const format = document.getElementById('video-format').value;
-    const tone = document.getElementById('tone').value;
-
-    // show loading state
-    resultsEl.classList.remove('empty');
-    resultsEl.innerHTML = '<div class="muted">Generating ideas…</div>';
-
-    // try contacting backend if available; otherwise fallback to local placeholders
-    try {
-      const resp = await fetch('/generate_content', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({description, format, tone})
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data && data.ideas) {
-          renderIdeas(data.ideas.map(mapBackendIdea));
-          return;
-        }
-      }
-    } catch (err) {
-      // ignoring errors from backend in demo mode
-      console.debug('Backend not available or returned error', err);
-    }
-
-    // fallback
-    const ideas = buildPlaceholderIdeas(description, format, tone);
-    renderIdeas(ideas);
+  function buildPlaceholderIdeas(description, format, tone, budget){
+    const base = description ? description.split('.')[0] : 'Your business';
+    return [1,2,3,4].map(n => {
+      const kind = ['Quick tip','Customer story','Before & after','How-to'][n-1];
+      return {
+        id: 'ph-'+n,
+        title: `${base} — ${kind}`,
+        format: format === 'youtube-long' ? 'YouTube (long)' : (format === 'youtube' ? 'YouTube Short' : 'Reel/TikTok'),
+        tone,
+        duration: format === 'youtube-long' ? `${2+n} min` : (format === 'youtube' ? '0:15' : '0:30'),
+        caption: `${kind} to boost engagement #${n}`,
+        script: `${n}. Hook (2-4s): Short surprising fact about ${base}\nShot 1: Close-up — 3s\nShot 2: Demo — 8s\nShot 3: CTA — 3s\nNotes: Add captions, natural light.`,
+        scriptFull: `HOOK:\nShort surprising fact about ${base}\n\nSCRIPT:\n${n}. Shot 1: ...` ,
+        apps: budget === 'free' ? ['CapCut','InShot','Canva'] : ['Premiere Pro','Final Cut Pro','DaVinci Resolve']
+      };
+    });
   }
 
-  function mapBackendIdea(raw){
-    // adapt a simple backend idea shape to UI card
+  function mapBackendIdea(raw, budget){
     return {
+      id: raw.id || raw.title,
       title: raw.title || raw.headline || 'Untitled idea',
       format: raw.format || 'Reel',
       tone: raw.tone || 'neutral',
@@ -142,17 +89,119 @@ document.addEventListener('DOMContentLoaded', () => {
       caption: raw.caption || raw.hook || '',
       script: raw.script || raw.body || '',
       scriptFull: raw.scriptFull || raw.script || '',
-      apps: raw.apps || ['CapCut','Canva']
+      apps: raw.apps || (budget === 'free' ? ['CapCut','Canva'] : ['Premiere Pro','Resolve'])
     };
   }
 
-  // wire UI
-  generateBtn.addEventListener('click', () => {
-    generateBtn.disabled = true;
-    generateBtn.textContent = 'Working...';
-    generate().finally(()=>{generateBtn.disabled=false;generateBtn.textContent='Generate ideas'});
+  function makeIdeaCard(idea){
+    const el = document.createElement('article');
+    el.className = 'idea-card fade-in';
+    el.innerHTML = `
+      <div class="idea-header">
+        <div>
+          <div class="idea-title">${escapeHtml(idea.title)}</div>
+          <div class="idea-meta">${escapeHtml(idea.format)} • ${escapeHtml(idea.tone)}</div>
+        </div>
+        <div class="pill">${escapeHtml(idea.duration)}</div>
+      </div>
+      <div class="idea-body">
+        <div class="muted"><strong>Hook:</strong> ${escapeHtml(idea.caption)}</div>
+        <div style="margin-top:8px"><strong>Preview:</strong>
+          <div class="muted" style="margin-top:6px;white-space:pre-wrap">${escapeHtml(idea.script.split('\n').slice(0,4).join('\n'))}…</div>
+        </div>
+        <div class="actions">
+          <button class="copy-btn" data-copy>Copy script</button>
+        </div>
+        <div style="margin-top:10px;color:var(--muted)"><strong>Apps:</strong> ${escapeHtml((idea.apps||[]).join(', '))}</div>
+      </div>`;
+
+    el.addEventListener('click', (e)=>{
+      // avoid card click when interacting with buttons
+      if(e.target.closest('button')) return;
+      showDetail(idea);
+    });
+
+    el.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        copyToClipboard(idea.scriptFull || idea.script || idea.caption);
+        btn.textContent = 'Copied';
+        setTimeout(()=> btn.textContent = 'Copy script', 1200);
+      });
+    });
+
+    return el;
+  }
+
+  function renderIdeas(list){
+    ideasGrid.innerHTML = '';
+    list.forEach(i => ideasGrid.appendChild(makeIdeaCard(i)));
+    showPage('ideas');
+  }
+
+  async function generateIdeas(){
+    const description = descEl.value.trim();
+    const format = formatEl.value;
+    const tone = toneEl.value;
+    const budget = getBudget();
+
+    if(!description){
+      alert('Please enter a short description of your business to get tailored ideas.');
+      return;
+    }
+
+    ideasGrid.innerHTML = '<div class="muted">Generating ideas…</div>';
+
+    // Try backend first
+    try{
+      const resp = await fetch('/idea-to-content', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({description})
+      });
+      if(resp.ok){
+        const data = await resp.json();
+        if(data && data.ideas){
+          const list = data.ideas.map(raw => mapBackendIdea(raw, budget));
+          renderIdeas(list);
+          return;
+        }
+      }
+    }catch(err){
+      console.debug('Backend not available—using local placeholders', err);
+    }
+
+    // fallback local generation
+    const fallback = buildPlaceholderIdeas(description, format, tone, budget);
+    renderIdeas(fallback);
+  }
+
+  function showDetail(idea){
+    detailTitle.textContent = idea.title;
+    detailBody.innerHTML = '';
+
+    const steps = [];
+    steps.push({title:'Hook',body:`${idea.caption || 'Short one-line hook to grab attention.'}`});
+    steps.push({title:'Shot list',body: (idea.script || '').split('\n').slice(0,6).join('\n') || '3 shots: intro, demo, CTA.'});
+    steps.push({title:'Script',body: idea.scriptFull || idea.script || 'Write a short 20-40s script with clear CTA.'});
+    steps.push({title:'Editing & Apps',body: `Recommended apps: ${idea.apps && idea.apps.join(', ')}`});
+    steps.push({title:'Distribution',body: 'Short caption + hashtags; post within first 60 minutes of scheduled time.'});
+
+    steps.forEach(s=>{
+      const el = document.createElement('div');
+      el.className = 'detail-step fade-in';
+      el.innerHTML = `<h4>${escapeHtml(s.title)}</h4><div class="muted-2" style="white-space:pre-wrap">${escapeHtml(s.body)}</div>`;
+      detailBody.appendChild(el);
+    });
+
+    showPage('detail');
+  }
+
+  // event hooks
+  toIdeasBtn.addEventListener('click', ()=>{
+    toIdeasBtn.disabled = true; toIdeasBtn.textContent = 'Working...';
+    generateIdeas().finally(()=>{toIdeasBtn.disabled = false; toIdeasBtn.textContent = 'See ideas'});
   });
 
-  // show initial placeholder
-  showPlaceholder();
+  // initial page
+  showPage('home');
 });

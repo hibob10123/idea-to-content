@@ -1,4 +1,5 @@
-from flask import Flask, jsonify, request, render_template, escape
+from flask import Flask, jsonify, request, render_template
+from markupsafe import escape
 
 app = Flask(__name__)
 
@@ -103,4 +104,10 @@ def idea_to_content():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # When running locally for development this block will start Flask's
+    # development server. In production (Render/Gunicorn) the WSGI server
+    # will import the `app` object directly. Read PORT from env so Render
+    # can bind the correct port.
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -7,26 +7,27 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="/static/css/style.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     </head>
     <body>
         <main class="app">
             <header class="header">
                 <div class="brand">
                     <h1>Idea → Content</h1>
-                    <p class="tag">AI-guided short-form video ideas & step-by-step production plans for businesses</p>
+                    <p class="tag">AI-guided short-form video ideas & step-by-step production plans</p>
                 </div>
                 <nav class="nav-cta">
-                    <a class="btn-outline" href="#how-it-works">How it works</a>
-                    <a class="btn" href="#generator">Get ideas</a>
+                    <button class="btn-outline" data-nav="home">Home</button>
+                    <button class="btn" data-nav="home">Start</button>
                 </nav>
             </header>
 
-            <section id="generator" class="panel">
+            <!-- Page: Home / Input -->
+            <section id="page-home" class="page panel page-active" data-page="home">
                 <div class="panel-grid">
                     <div class="left">
                         <h2 class="panel-title">Describe your business</h2>
-                        <p class="muted">Tell us what you do, who you sell to, and one goal (brand awareness, leads, sales, community).</p>
+                        <p class="muted">Tell us what you do, who you sell to, and one goal (brand awareness, leads, sales).</p>
 
                         <label class="field">
                             <span class="label">Business description</span>
@@ -52,53 +53,54 @@
                                 </select>
                             </div>
 
-                            <button id="generate-btn" class="btn btn-primary">Generate ideas</button>
+                            <div class="option-group budget">
+                                <label>Editing budget</label>
+                                <div class="budget-toggle">
+                                    <label><input type="radio" name="budget" value="free" checked> Free (mobile apps)</label>
+                                    <label><input type="radio" name="budget" value="paid"> Paid (desktop/pro)</label>
+                                </div>
+                            </div>
+
+                            <button id="to-ideas" class="btn btn-primary">See ideas</button>
                         </div>
 
-                        <div class="note muted">This is a front-end demo: if a backend exists, the UI will POST to <code>/generate_content</code>. Otherwise the app shows placeholder ideas to demonstrate layout.</div>
+                        <div class="note muted">This is a front-end demo: if a backend exists, the UI will POST to <code>/idea-to-content</code>. Otherwise the app shows placeholder ideas to demonstrate layout.</div>
                     </div>
 
                     <div class="right">
-                        <div id="results" class="results empty">
-                            <div class="placeholder">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <path d="M12 2v6" stroke-linecap="round" stroke-linejoin="round"></path>
-                                    <path d="M5 12h14" stroke-linecap="round" stroke-linejoin="round"></path>
-                                    <path d="M12 22v-6" stroke-linecap="round" stroke-linejoin="round"></path>
-                                </svg>
-                                <p class="muted">Your ideas will appear here</p>
-                            </div>
+                        <div class="hero-card">
+                            <h3>What you'll get</h3>
+                            <ul>
+                                <li>3–6 tailored short-video ideas</li>
+                                <li>Shot-by-shot script and hooks</li>
+                                <li>Editing app recommendations (free & paid)</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section id="how-it-works" class="panel slim">
-                <h3>How it works</h3>
-                <div class="steps">
-                    <div class="step">
-                        <strong>1.</strong>
-                        <div>
-                            <div class="step-title">Idea generation</div>
-                            <div class="muted">AI proposes 3-5 short video concepts tailored to your business and goals.</div>
-                        </div>
-                    </div>
+            <!-- Page: Ideas -->
+            <section id="page-ideas" class="page panel" data-page="ideas">
+                <div class="page-header">
+                    <button class="btn-outline" id="back-to-home">← Back</button>
+                    <div class="page-title">Generated ideas</div>
+                </div>
 
-                    <div class="step">
-                        <strong>2.</strong>
-                        <div>
-                            <div class="step-title">Shot list & script</div>
-                            <div class="muted">Each idea includes a shot-by-shot breakdown, a short script, caption, and hooks.</div>
-                        </div>
-                    </div>
+                <div id="ideas-grid" class="ideas-grid">
+                    <!-- Idea cards populated by JS -->
+                </div>
+            </section>
 
-                    <div class="step">
-                        <strong>3.</strong>
-                        <div>
-                            <div class="step-title">Apps & workflow</div>
-                            <div class="muted">Recommended apps and quick tips to record, edit, and optimize for each platform.</div>
-                        </div>
-                    </div>
+            <!-- Page: Detail -->
+            <section id="page-detail" class="page panel" data-page="detail">
+                <div class="page-header">
+                    <button class="btn-outline" id="back-to-ideas">← Back</button>
+                    <div class="page-title" id="detail-title">Idea details</div>
+                </div>
+
+                <div id="detail-body" class="detail-body">
+                    <!-- Filled by JS -->
                 </div>
             </section>
 
@@ -108,6 +110,6 @@
             </footer>
         </main>
 
-        <script src="/static/js/app.js" defer></script>
+        <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
     </body>
 </html>
